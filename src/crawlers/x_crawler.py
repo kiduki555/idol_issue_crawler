@@ -23,12 +23,19 @@ class XCrawler:
             })
         self.store_posts(posts)
 
-    def store_posts(self, posts):
-        """
-        Store tweets in MongoDB.
-        """
+    def store_posts(self, posts, keyword):
+        collection_name = "x"
+        collection = self.db_client.db[collection_name]
+
+        # Ensure collection exists and has necessary indexes
+        if collection_name not in self.db_client.db.list_collection_names():
+            print(f"[X] Creating collection: {collection_name}")
+            collection.create_index("url", unique=True)
+
         for post in posts:
-            if self.db_client.insert_data("x", post):
-                print(f"Inserted tweet: {post['text']}")
-            else:
-                print(f"Duplicate skipped: {post['text']}")
+            post["name"] = keyword
+            try:
+                collection.insert_one(post)
+                print(f"[X] Inserted: {post['title']} for {keyword} in {collection_name}")
+            except Exception as e:
+                print(f"[X] Duplicate or error: {post['title']} for {keyword} in {collection_name} -> {e}")

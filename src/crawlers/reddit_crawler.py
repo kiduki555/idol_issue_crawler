@@ -25,12 +25,19 @@ class RedditCrawler:
             })
         self.store_posts(posts)
 
-    def store_posts(self, posts):
-        """
-        Store parsed posts in MongoDB.
-        """
+    def store_posts(self, posts, keyword):
+        collection_name = "reddit"
+        collection = self.db_client.db[collection_name]
+
+        if collection_name not in self.db_client.db.list_collection_names():
+            print(f"[Reddit] Creating collection: {collection_name}")
+            collection.create_index("url", unique=True)
+
         for post in posts:
-            if self.db_client.insert_data("reddit", post):
-                print(f"Inserted: {post['title']}")
-            else:
-                print(f"Duplicate skipped: {post['title']}")
+            post["name"] = keyword
+            try:
+                collection.insert_one(post)
+                print(f"[Reddit] Inserted: {post['title']} for {keyword} in {collection_name}")
+            except Exception as e:
+                print(f"[Reddit] Duplicate or error: {post['title']} for {keyword} in {collection_name} -> {e}")
+

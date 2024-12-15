@@ -1,8 +1,13 @@
+import os
+from dotenv import load_dotenv
 from src.scheduler.task_scheduler import TaskScheduler
 from src.db.mongo_client import MongoDBClient
 from src.config.settings import Settings
 
 def main():
+    # Load environment variables
+    load_dotenv()
+
     # Load settings
     settings = Settings()
 

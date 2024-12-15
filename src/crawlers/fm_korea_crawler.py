@@ -37,12 +37,18 @@ class FMKoreaCrawler(BaseCrawler):
             posts.append({"title": title, "url": url, "source": "fmkorea"})
         return posts
 
-    def store_posts(self, posts):
-        """
-        Store parsed posts in MongoDB.
-        """
+    def store_posts(self, posts, keyword):
+        collection_name = "fmkorea"
+        collection = self.db_client.db[collection_name]
+
+        if collection_name not in self.db_client.db.list_collection_names():
+            print(f"[FM Korea] Creating collection: {collection_name}")
+            collection.create_index("url", unique=True)
+
         for post in posts:
-            if self.db_client.insert_data("fmkorea", post):
-                print(f"Inserted: {post['title']}")
-            else:
-                print(f"Duplicate skipped: {post['title']}")
+            post["name"] = keyword
+            try:
+                collection.insert_one(post)
+                print(f"[FM Korea] Inserted: {post['title']} for {keyword} in {collection_name}")
+            except Exception as e:
+                print(f"[FM Korea] Duplicate or error: {post['title']} for {keyword} in {collection_name} -> {e}")

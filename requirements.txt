@@ -5,3 +5,7 @@ pydantic~=2.10.3
 transformers~=4.47.0
 tweepy~=4.14.0
 praw~=7.8.1
+pydantic-settings~=2.7.0
+python-dotenv~=1.0.1
+beautifulsoup4~=4.12.3
+selenium~=4.27.1

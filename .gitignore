@@ -27,3 +27,4 @@ pip-log.txt
 *.bak
 *.swp
 *.whl" > .gitignore
+data/

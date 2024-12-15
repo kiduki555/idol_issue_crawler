@@ -1,11 +1,8 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+
+from src.crawlers.nate_crawler import NateCrawler
 from src.crawlers.dcinside_crawler import DCInsideCrawler
-from src.crawlers.fm_korea_crawler import FMKoreaCrawler
-from src.crawlers.reddit_crawler import RedditCrawler
-from src.crawlers.x_crawler import XCrawler
-from src.db.mongo_client import MongoDBClient
-from src.config.settings import Settings
 
 class TaskScheduler:
     def __init__(self, db_client, settings):
@@ -15,78 +12,69 @@ class TaskScheduler:
 
     def register_tasks(self):
         """
-        Register all scheduled tasks.
+        Register tasks dynamically for each platform's keywords.
         """
-        # DCInside Crawler
-        self.scheduler.add_job(
-            self.run_dcinside_crawler,
-            IntervalTrigger(minutes=self.settings.dcinside_interval),
-            id="dcinside_crawler",
-            replace_existing=True,
-        )
+        keywords = self.fetch_keywords()
+        for platform, platform_keywords in keywords.items():
+            if platform == "nate" and platform_keywords:
+                self.scheduler.add_job(
+                    self.run_nate_crawler,
+                    # IntervalTrigger(minutes=self.settings.nate_interval),
+                    args=[platform_keywords],
+                    id=f"nate_crawler",
+                    replace_existing=True
+                )
+            # elif platform == "dcinside" and platform_keywords:
+            #     self.scheduler.add_job(
+            #         self.run_dcinside_crawler,
+            #         IntervalTrigger(minutes=self.settings.dcinside_interval),
+            #         args=[platform_keywords],
+            #         id=f"dcinside_crawler",
+            #         replace_existing=True
+            #     )
+            # Add other platforms (FM Korea, Reddit, etc.) here as needed
 
-        # FM Korea Crawler
-        self.scheduler.add_job(
-            self.run_fm_korea_crawler,
-            IntervalTrigger(minutes=self.settings.fm_korea_interval),
-            id="fm_korea_crawler",
-            replace_existing=True,
-        )
+        print("[Scheduler] All tasks have been registered.")
 
-        # X Crawler
-        self.scheduler.add_job(
-            self.run_x_crawler,
-            IntervalTrigger(minutes=self.settings.x_interval),
-            id="x_crawler",
-            replace_existing=True,
-        )
+    def fetch_keywords(self):
+        collection = self.db_client.db["keywords"]
+        document = collection.find_one({})
+        if not document:
+            print("[Scheduler] No keywords found in MongoDB.")
+            return {}
+        return {key: value for key, value in document.items() if key != "_id"}
 
-        # Reddit Crawler
-        self.scheduler.add_job(
-            self.run_reddit_crawler,
-            IntervalTrigger(minutes=self.settings.reddit_interval),
-            id="reddit_crawler",
-            replace_existing=True,
-        )
+    def run_nate_crawler(self, keywords):
+        print(f"[Scheduler] Running Nate Pann crawler for keywords: {keywords}")
+        try:
+            nate_crawler = NateCrawler(self.db_client)
+            for keyword in keywords:
+                nate_crawler.fetch_posts(keyword, start_page=1, end_page=2)
+        except Exception as e:
+            print(f"[Scheduler] Error in Nate Pann crawler: {e}")
 
-    def run_dcinside_crawler(self):
-        crawler = DCInsideCrawler(self.db_client)
-        crawler.fetch_posts(gallery_id=self.settings.dcinside_gallery_id, max_pages=3)
-
-    def run_fm_korea_crawler(self):
-        crawler = FMKoreaCrawler(self.db_client)
-        crawler.fetch_posts(board_id=self.settings.fm_korea_board_id, max_pages=3)
-
-    def run_x_crawler(self):
-        crawler = XCrawler(
-            self.db_client,
-            api_key=self.settings.x_api_key,
-            api_secret=self.settings.x_api_secret,
-            access_token=self.settings.x_access_token,
-            access_secret=self.settings.x_access_secret,
-        )
-        crawler.fetch_tweets(query=self.settings.x_query, count=10)
-
-    def run_reddit_crawler(self):
-        crawler = RedditCrawler(
-            self.db_client,
-            client_id=self.settings.reddit_client_id,
-            client_secret=self.settings.reddit_client_secret,
-            user_agent=self.settings.reddit_user_agent,
-        )
-        crawler.fetch_posts(subreddit_name=self.settings.reddit_subreddit, limit=10)
+    def run_dcinside_crawler(self, keywords):
+        print(f"[Scheduler] Running DCInside crawler for keywords: {keywords}")
+        try:
+            dc_crawler = DCInsideCrawler(self.db_client)
+            for keyword in keywords:
+                dc_crawler.fetch_posts(gallery_id=keyword, max_pages=1)
+        except Exception as e:
+            print(f"[Scheduler] Error in DCInside crawler: {e}")
 
     def start(self):
         """
         Start the scheduler.
         """
+        print("[Scheduler] Starting the scheduler...")
         self.register_tasks()
         self.scheduler.start()
-        print("Scheduler started...")
+        print("[Scheduler] Scheduler started successfully.")
 
     def stop(self):
         """
         Stop the scheduler.
         """
+        print("[Scheduler] Stopping the scheduler...")
         self.scheduler.shutdown()
-        print("Scheduler stopped...")
+        print("[Scheduler] Scheduler stopped.")

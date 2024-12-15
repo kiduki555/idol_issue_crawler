@@ -1,0 +1,7 @@
+requests~=2.32.3
+APScheduler~=3.11.0
+pymongo~=4.10.1
+pydantic~=2.10.3
+transformers~=4.47.0
+tweepy~=4.14.0
+praw~=7.8.1
